@@ -10,6 +10,20 @@ api.interceptors.request.use((cfg) => {
   return cfg;
 });
 
+// Auto-logout when the token expires or is invalid (401 from server)
+api.interceptors.response.use(
+  (res) => res,
+  (err) => {
+    if (err.response?.status === 401) {
+      const wasLoggedIn = !!localStorage.getItem('token');
+      localStorage.removeItem('token');
+      // Only redirect if the user had a token (not on initial login attempt)
+      if (wasLoggedIn) window.location.href = '/login';
+    }
+    return Promise.reject(err);
+  }
+);
+
 export const errMsg = (e) => e?.response?.data?.message || e?.message || 'Something went wrong';
 
 export const money = (n, decimals = 0) =>
