@@ -1,10 +1,6 @@
 // ---------------------------------------------------------------------------
-// Payment methods registry. Only Cash on Delivery is enabled for now.
-// To add Razorpay/Stripe later:
-//   1. add an entry below (e.g. RAZORPAY) with a prepare() that creates the
-//      gateway order and returns { status: 'Pending', info: {...} }
-//   2. add a verify/webhook route that sets order.paymentStatus = 'Paid'
-//   3. the checkout page already renders whatever /api/payment-methods returns
+// Payment methods registry.
+// COD is always available. Razorpay is enabled when RAZORPAY_KEY_ID is set.
 // ---------------------------------------------------------------------------
 const methods = {
   COD: {
@@ -15,6 +11,32 @@ const methods = {
     },
   },
 };
+
+// Lazily add Razorpay only if credentials are present in env
+if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
+  const Razorpay = require('razorpay');
+  const rzp = new Razorpay({
+    key_id:     process.env.RAZORPAY_KEY_ID,
+    key_secret: process.env.RAZORPAY_KEY_SECRET,
+  });
+
+  methods.RAZORPAY = {
+    label: 'Pay Online',
+    description: 'UPI, Credit / Debit card, Net Banking via Razorpay.',
+    async prepare({ total }) {
+      // Amount must be in paise (1 INR = 100 paise)
+      const order = await rzp.orders.create({
+        amount:   Math.round(total * 100),
+        currency: 'INR',
+        receipt:  `receipt_${Date.now()}`,
+      });
+      return { status: 'Pending', info: { razorpayOrderId: order.id } };
+    },
+  };
+
+  // Export so the verify controller can use the same instance
+  exports.rzp = rzp;
+}
 
 exports.listMethods = () =>
   Object.entries(methods).map(([key, m]) => ({ key, label: m.label, description: m.description }));

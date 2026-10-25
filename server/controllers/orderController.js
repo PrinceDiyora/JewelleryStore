@@ -1,6 +1,7 @@
 const Order = require('../models/Order');
 const Product = require('../models/Product');
 const Coupon = require('../models/Coupon');
+const crypto = require('crypto');
 const { ah, httpError, round2 } = require('../utils/helpers');
 const { getPricingContext, priceBreakup } = require('../utils/pricing');
 const { validateCoupon } = require('../utils/coupons');
@@ -103,3 +104,37 @@ exports.cancelOrder = ah(async (req, res) => {
   await restock(order);
   res.json(order);
 });
+
+// Verify Razorpay payment signature after the popup closes successfully
+exports.verifyPayment = ah(async (req, res) => {
+  const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+  if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature)
+    throw httpError(400, 'Missing payment verification fields');
+
+  // Find the order that was created for this Razorpay order
+  const order = await Order.findOne({
+    user: req.user._id,
+    'paymentInfo.razorpayOrderId': razorpay_order_id,
+  });
+  if (!order) throw httpError(404, 'Order not found');
+  if (order.paymentStatus === 'Paid') return res.json(order); // already verified
+
+  // Verify HMAC-SHA256 signature: razorpay_order_id + "|" + razorpay_payment_id
+  const body      = `${razorpay_order_id}|${razorpay_payment_id}`;
+  const expected  = crypto
+    .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
+    .update(body)
+    .digest('hex');
+
+  if (expected !== razorpay_signature) {
+    order.paymentStatus = 'Failed';
+    await order.save();
+    throw httpError(400, 'Payment verification failed. Please contact support.');
+  }
+
+  order.paymentStatus = 'Paid';
+  order.paymentInfo   = { ...order.paymentInfo, razorpay_payment_id, razorpay_signature };
+  await order.save();
+  res.json(order);
+});
+
