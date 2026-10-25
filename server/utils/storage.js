@@ -1,18 +1,28 @@
 // ---------------------------------------------------------------------------
-// Image storage helper. Today: local /uploads folder.
-// To move to Cloudinary/S3 later, change only this file + middleware/upload.js
-// (store absolute URLs in the database; the client already handles http URLs).
+// Image storage — Cloudinary.
+// Env vars required: CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET
+// To revert to local storage, restore the original file and middleware/upload.js
 // ---------------------------------------------------------------------------
-const fs = require('fs');
-const path = require('path');
+const cloudinary = require('cloudinary').v2;
 
-const UPLOAD_DIR = path.join(__dirname, '..', 'uploads');
-fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key:    process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
-exports.UPLOAD_DIR = UPLOAD_DIR;
-exports.publicUrl = (file) => `/uploads/${file.filename}`;
+// multer-storage-cloudinary puts the final Cloudinary URL in file.path
+exports.publicUrl = (file) => file.path;
+
+// Delete an image from Cloudinary using its stored URL
 exports.removeFile = (url) => {
-  if (typeof url === 'string' && url.startsWith('/uploads/')) {
-    fs.unlink(path.join(UPLOAD_DIR, path.basename(url)), () => {});
-  }
+  if (!url || !url.startsWith('http')) return;
+  try {
+    // URL pattern: https://res.cloudinary.com/<cloud>/image/upload/v123/<folder>/<public_id>.<ext>
+    // public_id includes the folder, e.g. "jewellery/abc123"
+    const match = url.match(/\/upload\/(?:v\d+\/)?(.+)\.[a-z]+$/i);
+    if (match) cloudinary.uploader.destroy(match[1], () => {});
+  } catch (_) {}
 };
+
+exports.cloudinary = cloudinary;
