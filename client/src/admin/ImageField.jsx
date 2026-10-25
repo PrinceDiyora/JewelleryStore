@@ -8,9 +8,16 @@ export default function ImageField({ value, onChange, multiple = false }) {
   const [error, setError] = useState('');
   const list = multiple ? value || [] : value ? [value] : [];
 
+  const MAX_MB = 15;
   const upload = async (e) => {
     const files = [...e.target.files];
     if (!files.length) return;
+    const tooBig = files.filter((f) => f.size > MAX_MB * 1024 * 1024);
+    if (tooBig.length) {
+      setError(`File too large: ${tooBig.map((f) => f.name).join(', ')} — max ${MAX_MB} MB each`);
+      input.current.value = '';
+      return;
+    }
     setBusy(true); setError('');
     try {
       const fd = new FormData();

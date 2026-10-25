@@ -9,7 +9,8 @@ const app = express();
 const origins = (process.env.CLIENT_URL || 'http://localhost:5173').split(',').map((s) => s.trim());
 app.use(cors({ origin: origins }));
 app.use(express.json({ limit: '1mb' }));
-if (process.env.NODE_ENV !== 'test') app.use(morgan('dev'));
+if (process.env.NODE_ENV !== 'test')
+  app.use(morgan('dev', { skip: (_req, res) => res.statusCode < 400 }));
 
 // Uploaded images (local storage). Swap utils/storage.js for Cloudinary/S3 when deploying.
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));

@@ -17,8 +17,13 @@ function AuthForm({ mode }) {
     e.preventDefault();
     setError(''); setBusy(true);
     try {
-      isLogin ? await login(form.email, form.password) : await register(form);
-      navigate(state?.from || '/', { replace: true });
+      const user = isLogin ? await login(form.email, form.password) : await register(form);
+      // Admins should use the admin login page — redirect them away from the customer area
+      if (user?.role === 'admin') {
+        navigate('/admin', { replace: true });
+      } else {
+        navigate(state?.from || '/', { replace: true });
+      }
     } catch (err) {
       setError(errMsg(err));
     } finally {
@@ -39,6 +44,10 @@ function AuthForm({ mode }) {
       </form>
       <p className="mt-4 text-center text-sm text-ink/70">
         {isLogin ? <>New here? <Link className="text-garnet underline" to="/register" state={state}>Create an account</Link></> : <>Already registered? <Link className="text-garnet underline" to="/login" state={state}>Log in</Link></>}
+      </p>
+      <p className="mt-6 border-t border-mist pt-5 text-center text-xs text-ink/40">
+        Are you the store admin?{' '}
+        <Link to="/admin/login" className="font-medium text-garnet hover:underline">Sign in to Admin Panel →</Link>
       </p>
     </div>
   );

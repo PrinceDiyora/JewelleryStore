@@ -26,7 +26,7 @@ export default function AdminApp() {
 
   if (loading) return <p className="p-10 text-center text-ink/60">Loading…</p>;
   // Normal users and visitors never see admin pages (the API also enforces this)
-  if (!user || user.role !== 'admin') return <Navigate to="/admin/login" replace />;
+  if (!user || user.role !== 'admin') return <Navigate to="/login" replace />;
 
   const link = ({ isActive }) => `block rounded px-3 py-2 text-sm ${isActive ? 'bg-white/15 font-semibold text-white' : 'text-white/70 hover:bg-white/10 hover:text-white'}`;
 
@@ -40,7 +40,7 @@ export default function AdminApp() {
         </nav>
         <div className="mt-4 border-t border-white/10 pt-4 md:mt-8">
           <Link to="/" className="block px-3 py-2 text-sm text-white/70 hover:text-white">View store</Link>
-          <button onClick={() => { logout(); navigate('/admin/login'); }} className="block w-full px-3 py-2 text-left text-sm text-white/70 hover:text-white">Log out</button>
+          <button onClick={() => { logout(); navigate('/login'); }} className="block w-full px-3 py-2 text-left text-sm text-white/70 hover:text-white">Log out</button>
         </div>
       </aside>
       <main className="min-w-0 flex-1 p-5 md:p-8">
